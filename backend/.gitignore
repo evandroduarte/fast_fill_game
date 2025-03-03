@@ -1,0 +1,10 @@
+__pycache__/
+
+# FastAPI specific
+*.log
+*.db
+*.sqlite3
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
