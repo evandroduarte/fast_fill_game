@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GameState, GameAction, PlayerColor } from '../types/game';
 
-const WS_URL = 'ws://3.21.237.2:8000/ws';
+const WS_URL = process.env.WEBSOCKET_URL ?? 'ws://localhost:8000/ws';
 
 export function useWebSocket() {
   const [socket, setSocket] = useState<WebSocket | null>(null);
