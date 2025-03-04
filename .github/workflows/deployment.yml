@@ -15,7 +15,7 @@ env:
   ECS_CLUSTER: DevCluster
   TASK_DEFINITION_BACKEND: .aws/task-definition-backend.json
   TASK_DEFINITION_FRONTEND: .aws/task-definition-frontend.json
-  WEBSOCKET_URL: ${{ env.WEBSOCKET_URL }}
+  WEBSOCKET_URL: ${{ secrets.WEBSOCKET_URL }}
 
 jobs:
   backend-build-and-deploy:
