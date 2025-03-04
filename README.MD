@@ -2,6 +2,10 @@
 
 A simple 2-player real-time game where players compete to fill a grid with their color. The player with the most squares at the end wins.
 
+## Game
+
+[Fill Game Website](http://fill-game-lb-1845414604.us-east-2.elb.amazonaws.com/)
+
 ## Project Structure
 
 The project consists of two main components:
