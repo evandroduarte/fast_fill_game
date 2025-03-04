@@ -10,9 +10,9 @@ env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY_BACKEND: fill-game/backend
   ECR_REPOSITORY_FRONTEND: fill-game/frontend
-  ECS_SERVICE_BACKEND: fill-game-backend
-  ECS_SERVICE_FRONTEND: fill-game-frontend
-  ECS_CLUSTER: FillGameCluster
+  ECS_SERVICE_BACKEND: fill-game-backend-service
+  ECS_SERVICE_FRONTEND: fill-game-frontend-service
+  ECS_CLUSTER: DevCluster
 
 jobs:
   backend-build-and-deploy:
