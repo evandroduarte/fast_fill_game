@@ -17,6 +17,12 @@ export const GamePage: React.FC = () => {
     }
   }, [gameState.playerColor, gameState.gameStatus, sendAction]);
 
+  const handlePlayAgain = useCallback(() => {
+    sendAction({
+      type: 'play_again'
+    });
+  }, [sendAction]);
+
   if (!connected) {
     return <div className="connecting">Connecting to server...</div>;
   }
@@ -30,6 +36,14 @@ export const GamePage: React.FC = () => {
         playerColor={gameState.playerColor}
         isGameActive={gameState.gameStatus === 'playing'}
       />
+      {gameState.gameStatus === 'finished' && (
+        <button
+          className="play-again-btn"
+          onClick={handlePlayAgain}
+        >
+          Play Again
+        </button>
+      )}
       <GameInfo
         redCount={gameState.redCount}
         blueCount={gameState.blueCount}

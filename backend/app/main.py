@@ -4,7 +4,7 @@ import json
 from typing import Dict
 import asyncio
 
-from app.game import Game, CellColor
+from app.game import Game, CellColor, GameStatus
 
 app = FastAPI()
 
@@ -102,6 +102,19 @@ async def websocket_endpoint(websocket: WebSocket):
                                 "type": "game_state",
                                 "state": game.get_state(cid)
                             }))
+
+            elif action["type"] == "play_again":
+                game.reset()
+
+                if len(connected_clients) == 2:
+                    game.status = GameStatus.PLAYING
+
+                # Broadcast updated game state to all players
+                for cid, ws in connected_clients.items():
+                    await ws.send_text(json.dumps({
+                        "type": "game_state",
+                        "state": game.get_state(cid)
+                    }))
 
     except WebSocketDisconnect:
         # Clean up when client disconnects

@@ -12,8 +12,8 @@ export interface GameState {
 }
 
 export interface GameAction {
-  type: 'cell_click';
-  row: number;
-  col: number;
-  color: PlayerColor;
+  type: 'cell_click' | 'play_again';
+  row?: number;
+  col?: number;
+  color?: PlayerColor;
 }
