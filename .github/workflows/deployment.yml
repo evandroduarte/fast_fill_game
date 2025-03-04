@@ -13,6 +13,8 @@ env:
   ECS_SERVICE_BACKEND: fill-game-backend-service
   ECS_SERVICE_FRONTEND: fill-game-frontend-service
   ECS_CLUSTER: DevCluster
+  TASK_DEFINITION_BACKEND: .aws/task-definition-backend.json
+  TASK_DEFINITION_FRONTEND: .aws/task-definition-frontend.json
 
 jobs:
   backend-build-and-deploy:
@@ -20,95 +22,100 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.10'
+      - name: Build, tag, and push backend image to Amazon ECR
+        id: build-backend-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd backend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_ENV
 
-    - name: Build, tag, and push backend image to Amazon ECR
-      id: build-backend-image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        cd backend
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+      - name: Update ECS Task Definition for Backend
+        run: |
+          jq '.containerDefinitions[0].image = "${{ env.image }}"' $TASK_DEFINITION_BACKEND > backend-task-def.json
+          aws ecs register-task-definition --cli-input-json file://backend-task-def.json
 
-    - name: Update ECS backend service
-      run: |
-        aws ecs update-service \
-          --cluster $ECS_CLUSTER \
-          --service $ECS_SERVICE_BACKEND \
-          --force-new-deployment \
-          --region $AWS_REGION
+      - name: Deploy ECS Backend Service
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE_BACKEND \
+            --force-new-deployment \
+            --region $AWS_REGION
 
   frontend-build-and-deploy:
     name: Frontend Build and Deploy
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Use Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        cache: 'yarn'
-        cache-dependency-path: frontend/yarn.lock
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
 
-    - name: Install Dependencies
-      run: |
-        cd frontend
-        yarn install
+      - name: Install Dependencies
+        run: |
+          cd frontend
+          yarn install
 
-    - name: Build Frontend
-      run: |
-        cd frontend
-        yarn build
+      - name: Build Frontend
+        run: |
+          cd frontend
+          yarn build
 
-    - name: Build, tag, and push frontend image to Amazon ECR
-      id: build-frontend-image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        cd frontend
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+      - name: Build, tag, and push frontend image to Amazon ECR
+        id: build-frontend-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd frontend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG" >> $GITHUB_ENV
 
-    - name: Update ECS frontend service
-      run: |
-        aws ecs update-service \
-          --cluster $ECS_CLUSTER \
-          --service $ECS_SERVICE_FRONTEND \
-          --force-new-deployment \
-          --region $AWS_REGION
+      - name: Update ECS Task Definition for Frontend
+        run: |
+          jq '.containerDefinitions[0].image = "${{ env.image }}"' $TASK_DEFINITION_FRONTEND > frontend-task-def.json
+          aws ecs register-task-definition --cli-input-json file://frontend-task-def.json
+
+      - name: Deploy ECS Frontend Service
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE_FRONTEND \
+            --force-new-deployment \
+            --region $AWS_REGION
