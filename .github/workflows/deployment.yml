@@ -79,23 +79,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Use Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'yarn'
-          cache-dependency-path: frontend/yarn.lock
-
-      - name: Install Dependencies
-        run: |
-          cd frontend
-          yarn install
-
-      - name: Build Frontend
-        run: |
-          cd frontend
-          yarn build
-
       - name: Build, tag, and push frontend image to Amazon ECR
         id: build-frontend-image
         env:
