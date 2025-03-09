@@ -1,5 +1,8 @@
 FROM node:18 AS build
 
+ARG VITE_WEBSOCKET_URL
+ENV VITE_WEBSOCKET_URL=$VITE_WEBSOCKET_URL
+
 WORKDIR /app
 
 COPY package.json yarn.lock ./
