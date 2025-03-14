@@ -1,3 +1,4 @@
+import time
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import json
@@ -21,22 +22,19 @@ game = Game()
 # Connected WebSocket clients
 connected_clients: Dict[str, WebSocket] = {}
 
+broadcast_lock = asyncio.Lock()
+
 # Regular broadcast of game state (for timer updates)
-async def broadcast_game_state():
+async def automatic_broadcast_game_state():
     while True:
         if game.status == "playing" and connected_clients:
             # Create individual messages for each player
-            for client_id, websocket in connected_clients.items():
-                message = {
-                    "type": "game_state",
-                    "state": game.get_state(client_id)
-                }
-                await websocket.send_text(json.dumps(message))
+            await broadcast_game_state()
         await asyncio.sleep(1)  # Update every second
 
 @app.on_event("startup")
 async def startup_event():
-    asyncio.create_task(broadcast_game_state())
+    asyncio.create_task(automatic_broadcast_game_state())
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -78,12 +76,16 @@ async def send_message(websocket: WebSocket, message: dict):
 
 async def broadcast_game_state():
     """Broadcast the current game state to all connected clients."""
-    if connected_clients:
-        tasks = [
-            send_message(ws, {"type": "game_state", "state": game.get_state(cid)})
-            for cid, ws in connected_clients.items()
-        ]
-        await asyncio.gather(*tasks)
+    try:
+        async with broadcast_lock:
+            if connected_clients:
+                tasks = [
+                    send_message(ws, {"type": "game_state", "state": game.get_state(cid)})
+                    for cid, ws in connected_clients.items()
+                ]
+                await asyncio.gather(*tasks)
+    except Exception as e:
+        print(f"Error broadcasting game state: {e}")
 
 async def handle_message(client_id: str, message: str):
     """Processes incoming messages from the client."""
@@ -99,6 +101,7 @@ async def handle_message(client_id: str, message: str):
         elif action["type"] == "play_again":
             game.reset()
             if len(connected_clients) == 2:
+                game.start_time = time.time()
                 game.status = GameStatus.PLAYING
             await broadcast_game_state()
 
