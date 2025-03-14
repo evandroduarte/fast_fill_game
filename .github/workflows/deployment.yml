@@ -48,15 +48,18 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_ENV
 
       - name: Update ECS Task Definition for Backend
+        id: task-def-backend
         run: |
           jq '.containerDefinitions[0].image = "${{ env.image }}"' $TASK_DEFINITION_BACKEND > backend-task-def.json
           aws ecs register-task-definition --cli-input-json file://backend-task-def.json
+          echo "task_definition_arn=$(aws ecs describe-task-definition --task-definition $(jq -r '.family' backend-task-def.json) --query 'taskDefinition.taskDefinitionArn' --output text)" >> $GITHUB_OUTPUT
 
       - name: Deploy ECS Backend Service
         run: |
           aws ecs update-service \
             --cluster $ECS_CLUSTER \
             --service $ECS_SERVICE_BACKEND \
+            --task-definition ${{ steps.task-def-backend.outputs.task_definition_arn }} \
             --force-new-deployment \
             --region $AWS_REGION
 
@@ -92,14 +95,17 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG" >> $GITHUB_ENV
 
       - name: Update ECS Task Definition for Frontend
+        id: task-def-frontend
         run: |
           jq '.containerDefinitions[0].image = "${{ env.image }}"' $TASK_DEFINITION_FRONTEND > frontend-task-def.json
           aws ecs register-task-definition --cli-input-json file://frontend-task-def.json
+          echo "task_definition_arn=$(aws ecs describe-task-definition --task-definition $(jq -r '.family' frontend-task-def.json) --query 'taskDefinition.taskDefinitionArn' --output text)" >> $GITHUB_OUTPUT
 
       - name: Deploy ECS Frontend Service
         run: |
           aws ecs update-service \
             --cluster $ECS_CLUSTER \
             --service $ECS_SERVICE_FRONTEND \
+            --task-definition ${{ steps.task-def-frontend.outputs.task_definition_arn }} \
             --force-new-deployment \
             --region $AWS_REGION
